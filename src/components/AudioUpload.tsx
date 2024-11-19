@@ -1,36 +1,67 @@
 import React, { useState } from 'react';
 import { Upload, X } from 'lucide-react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '../lib/firebase';
 import { toast } from 'sonner';
 
 interface AudioUploadProps {
   onClose: () => void;
-  onUploadComplete: (url: string, title: string) => void;
+  onUploadComplete: (url: string, title: string, description: string) => void;
 }
 
 const AudioUpload: React.FC<AudioUploadProps> = ({ onClose, onUploadComplete }) => {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || !title) return;
 
+    // Check file type
+    if (!file.type.startsWith('audio/')) {
+      toast.error('Please upload an audio file');
+      return;
+    }
+
+    // Check file size (50MB max)
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File size must be less than 50MB');
+      return;
+    }
+
     setUploading(true);
     try {
       const storageRef = ref(storage, `sermons/${Date.now()}-${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      
-      onUploadComplete(url, title);
-      toast.success('Sermon uploaded successfully!');
-      onClose();
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.error('Upload error:', error);
+          toast.error('Failed to upload sermon');
+          setUploading(false);
+        },
+        async () => {
+          try {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            console.log('File uploaded, URL:', url);
+            onUploadComplete(url, title, description);
+          } catch (error) {
+            console.error('Error getting download URL:', error);
+            toast.error('Failed to get download URL');
+            setUploading(false);
+          }
+        }
+      );
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload sermon');
-    } finally {
       setUploading(false);
     }
   };
@@ -59,6 +90,18 @@ const AudioUpload: React.FC<AudioUploadProps> = ({ onClose, onUploadComplete }) 
               onChange={(e) => setTitle(e.target.value)}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
@@ -106,6 +149,20 @@ const AudioUpload: React.FC<AudioUploadProps> = ({ onClose, onUploadComplete }) 
           </div>
         </form>
       </div>
+
+      {uploading && (
+        <div className="mt-4">
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div 
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+          <p className="text-sm text-gray-600 mt-2 text-center">
+            Uploading: {Math.round(uploadProgress)}%
+          </p>
+        </div>
+      )}
     </div>
   );
 };

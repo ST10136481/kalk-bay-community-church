@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Play, Download, Plus, LogOut } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { collection, getDocs, query, orderBy, addDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { ref, get, push, set} from 'firebase/database';
+import { database } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import AudioUpload from './AudioUpload';
 
@@ -89,13 +89,41 @@ const Sermons = () => {
   useEffect(() => {
     const fetchSermons = async () => {
       try {
-        const sermonsQuery = query(collection(db, 'sermons'), orderBy('date', 'desc'));
-        const querySnapshot = await getDocs(sermonsQuery);
-        const sermonsData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as SermonData));
-        setSermons(sermonsData);
+        const sermonsRef = ref(database, 'sermons');
+        console.log('Fetching sermons...');
+        const snapshot = await get(sermonsRef);
+        console.log('Snapshot received:', snapshot.exists());
+        
+        if (!snapshot.exists()) {
+          console.log('No sermons found');
+          setSermons([]);
+          setLoading(false);
+          return;
+        }
+
+        const sermonsData: SermonData[] = [];
+        
+        snapshot.forEach((childSnapshot) => {
+          const data = childSnapshot.val();
+          console.log('Processing sermon:', data);
+          
+          if (data) {
+            sermonsData.push({
+              id: childSnapshot.key || '',
+              title: data.title || 'Untitled Sermon',
+              date: data.date || new Date().toISOString(),
+              audioUrl: data.audioUrl || '',
+              description: data.description || ''
+            });
+          }
+        });
+
+        const sortedSermons = sermonsData.sort((a, b) => 
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+
+        console.log('Final processed sermons:', sortedSermons);
+        setSermons(sortedSermons);
       } catch (error) {
         console.error('Error fetching sermons:', error);
         toast.error('Failed to load sermons');
@@ -118,18 +146,27 @@ const Sermons = () => {
     }
   };
 
-  const handleUploadComplete = async (url: string, title: string) => {
+  const handleUploadComplete = async (url: string, title: string, description: string) => {
     try {
+      const sermonsRef = ref(database, 'sermons');
+      const newSermonRef = push(sermonsRef);
+      
       const newSermon = {
-        title,
+        title: title,
         date: new Date().toISOString(),
         audioUrl: url,
+        description: description || ''
       };
       
-      const docRef = await addDoc(collection(db, 'sermons'), newSermon);
-      const sermonWithId = { id: docRef.id, ...newSermon };
-      setSermons(prev => [sermonWithId, ...prev]);
+      await set(newSermonRef, newSermon);
       
+      const sermonWithId = { 
+        id: newSermonRef.key!, 
+        ...newSermon 
+      };
+      
+      setSermons(prev => [sermonWithId, ...prev]);
+      setShowUpload(false);
       toast.success('Sermon uploaded successfully!');
     } catch (error) {
       console.error('Error saving sermon:', error);

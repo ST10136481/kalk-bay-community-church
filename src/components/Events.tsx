@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Edit } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
-import { collection, getDocs, addDoc, updateDoc, doc, query, orderBy } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { ref, get, push, set, update, query, orderByChild } from 'firebase/database';
+import { database } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import type { Event } from '../types';
@@ -94,17 +94,50 @@ const Events = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const eventsQuery = query(collection(db, 'events'), orderBy('date', 'desc'));
-        const querySnapshot = await getDocs(eventsQuery);
-        const specialEvents = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Event));
+        const eventsRef = ref(database, 'events');
+        const eventsQuery = query(eventsRef, orderByChild('date'));
         
+        console.log('Attempting to fetch events...');
+        const snapshot = await get(eventsQuery);
+        console.log('Snapshot received:', snapshot.exists());
+        
+        if (!snapshot.exists()) {
+          console.log('No events found in database');
+          setEvents(PERMANENT_EVENTS);
+          setLoading(false);
+          return;
+        }
+
+        const specialEvents: Event[] = [];
+        
+        snapshot.forEach((childSnapshot) => {
+          const data = childSnapshot.val();
+          console.log('Processing event:', data);
+          
+          if (data) {
+            specialEvents.push({
+              id: childSnapshot.key || '',
+              title: data.title,
+              time: data.time,
+              date: data.date,
+              description: data.description,
+              imageUrl: data.imageUrl,
+              type: data.type || 'special'
+            });
+          }
+        });
+        
+        console.log('Final processed events:', specialEvents);
         setEvents([...PERMANENT_EVENTS, ...specialEvents]);
       } catch (error) {
         console.error('Error fetching events:', error);
-        toast.error('Failed to load events');
+        // More detailed error logging
+        if (error instanceof Error) {
+          console.error('Error details:', error.message);
+          toast.error(`Failed to load events: ${error.message}`);
+        } else {
+          toast.error('Failed to load events: Unknown error');
+        }
       } finally {
         setLoading(false);
       }
@@ -116,8 +149,8 @@ const Events = () => {
   const handleSaveEvent = async (eventData: Partial<Event>) => {
     try {
       if (selectedEvent?.isPermanent) {
-        const eventRef = doc(db, 'events', selectedEvent.id);
-        await updateDoc(eventRef, { time: eventData.time });
+        const eventRef = ref(database, `events/${selectedEvent.id}`);
+        await update(eventRef, { time: eventData.time });
         
         setEvents(events.map(event => 
           event.id === selectedEvent.id 
@@ -125,8 +158,8 @@ const Events = () => {
             : event
         ));
       } else if (selectedEvent?.id) {
-        const eventRef = doc(db, 'events', selectedEvent.id);
-        await updateDoc(eventRef, eventData);
+        const eventRef = ref(database, `events/${selectedEvent.id}`);
+        await update(eventRef, eventData);
         
         setEvents(events.map(event =>
           event.id === selectedEvent.id
@@ -134,8 +167,15 @@ const Events = () => {
             : event
         ));
       } else {
-        const docRef = await addDoc(collection(db, 'events'), eventData);
-        const newEvent = { id: docRef.id, ...eventData } as Event;
+        const eventsRef = ref(database, 'events');
+        const newEventRef = push(eventsRef);
+        await set(newEventRef, eventData);
+        
+        const newEvent = { 
+          id: newEventRef.key!, 
+          ...eventData 
+        } as Event;
+        
         setEvents(prevEvents => [...prevEvents, newEvent]);
       }
       
