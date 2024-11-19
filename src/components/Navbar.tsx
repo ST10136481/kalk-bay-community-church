@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React,{ useState, useEffect } from 'react';
 import { Menu, X, Church, UserCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import AuthModal from './AuthModal';
@@ -72,20 +72,12 @@ const Navbar = () => {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleAuthClick('login')}
-                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => handleAuthClick('signup')}
-                  className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Sign Up
-                </button>
-              </div>
+              <button
+                onClick={() => handleAuthClick('login')}
+                className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                Sign Up / Login
+              </button>
             )}
           </div>
 
@@ -121,20 +113,12 @@ const Navbar = () => {
                 Logout
               </button>
             ) : (
-              <>
-                <button
-                  onClick={() => handleAuthClick('login')}
-                  className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => handleAuthClick('signup')}
-                  className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
-                >
-                  Sign Up
-                </button>
-              </>
+              <button
+                onClick={() => handleAuthClick('login')}
+                className="bg-blue-600 text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left hover:bg-blue-700 transition-colors"
+              >
+                Sign Up / Login
+              </button>
             )}
           </div>
         </div>
