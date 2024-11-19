@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
-import { User, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { 
+  User, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup
+} from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
 export function useAuth() {
@@ -25,6 +32,27 @@ export function useAuth() {
     }
   };
 
+  const signup = async (email: string, password: string) => {
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      return true;
+    } catch (error) {
+      console.error('Signup error:', error);
+      return false;
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      return true;
+    } catch (error) {
+      console.error('Google login error:', error);
+      return false;
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -35,5 +63,5 @@ export function useAuth() {
     }
   };
 
-  return { user, loading, login, logout };
+  return { user, loading, login, signup, loginWithGoogle, logout };
 }

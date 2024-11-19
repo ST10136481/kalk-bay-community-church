@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Download, Plus, LogOut } from 'lucide-react';
+import { Play, Download, Plus, LogOut, Pause } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ref, get, push, set} from 'firebase/database';
@@ -17,6 +17,8 @@ interface SermonData {
 
 const SermonCard = React.memo(({ sermon }: { sermon: SermonData }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   const handlePlay = () => {
@@ -30,13 +32,38 @@ const SermonCard = React.memo(({ sermon }: { sermon: SermonData }) => {
     }
   };
 
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = Number(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   const handleDownload = () => {
     const link = document.createElement('a');
     link.href = sermon.audioUrl;
-    link.download = `${sermon.title}.mp3`;
-    document.body.appendChild(link);
+    link.setAttribute('download', `${sermon.title}.mp3`);
+    link.setAttribute('target', '_blank');
     link.click();
-    document.body.removeChild(link);
   };
 
   return (
@@ -53,7 +80,11 @@ const SermonCard = React.memo(({ sermon }: { sermon: SermonData }) => {
             onClick={handlePlay}
             className="p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
           >
-            <Play className={`h-5 w-5 ${isPlaying ? 'text-blue-800' : ''}`} />
+            {isPlaying ? (
+              <Pause className="h-5 w-5" />
+            ) : (
+              <Play className="h-5 w-5" />
+            )}
           </button>
           <button
             onClick={handleDownload}
@@ -63,12 +94,33 @@ const SermonCard = React.memo(({ sermon }: { sermon: SermonData }) => {
           </button>
         </div>
       </div>
+      
       {sermon.description && (
         <p className="text-gray-600 text-sm mb-4">{sermon.description}</p>
       )}
+
+      <div className="flex items-center space-x-2">
+        <span className="text-xs text-gray-500 w-12">
+          {formatTime(currentTime)}
+        </span>
+        <input
+          type="range"
+          min="0"
+          max={duration || 0}
+          value={currentTime}
+          onChange={handleSeek}
+          className="flex-grow h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-blue-700"
+        />
+        <span className="text-xs text-gray-500 w-12">
+          {formatTime(duration)}
+        </span>
+      </div>
+
       <audio
         ref={audioRef}
         src={sermon.audioUrl}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => setIsPlaying(false)}
         className="hidden"
       />

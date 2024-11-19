@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Church } from 'lucide-react';
+import { Menu, X, Church, UserCircle } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import AuthModal from './AuthModal';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,6 +26,15 @@ const Navbar = () => {
     }
   };
 
+  const handleAuthClick = (mode: 'login' | 'signup') => {
+    setAuthMode(mode);
+    setShowAuthModal(true);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${
       isScrolled ? 'bg-white shadow-lg' : 'bg-transparent'
@@ -34,9 +48,9 @@ const Navbar = () => {
             </span>
           </div>
           
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-4">
-              {['About', 'Events', 'Sermons', 'Join Us'].map((item) => (
+          <div className="hidden md:flex items-center space-x-4">
+            <div className="flex items-baseline space-x-4">
+              {['About', 'Events', 'Calendar', 'Sermons', 'Join Us'].map((item) => (
                 <button
                   key={item}
                   onClick={() => scrollToSection(item.toLowerCase().replace(' ', '-'))}
@@ -46,6 +60,33 @@ const Navbar = () => {
                 </button>
               ))}
             </div>
+
+            {user ? (
+              <div className="flex items-center space-x-2">
+                <UserCircle className="h-6 w-6 text-gray-600" />
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleAuthClick('login')}
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => handleAuthClick('signup')}
+                  className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Sign Up
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="md:hidden">
@@ -62,7 +103,7 @@ const Navbar = () => {
       {isOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white shadow-lg">
-            {['About', 'Events', 'Sermons', 'Join Us'].map((item) => (
+            {['About', 'Events', 'Calendar', 'Sermons', 'Join Us'].map((item) => (
               <button
                 key={item}
                 onClick={() => scrollToSection(item.toLowerCase().replace(' ', '-'))}
@@ -71,8 +112,39 @@ const Navbar = () => {
                 {item}
               </button>
             ))}
+            
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+              >
+                Logout
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleAuthClick('login')}
+                  className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => handleAuthClick('signup')}
+                  className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+                >
+                  Sign Up
+                </button>
+              </>
+            )}
           </div>
         </div>
+      )}
+
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          initialMode={authMode}
+        />
       )}
     </nav>
   );
