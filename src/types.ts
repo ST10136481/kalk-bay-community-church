@@ -5,8 +5,12 @@ export interface Event {
   date?: string;
   description: string;
   imageUrl: string;
+  type: 'regular' | 'special';
+  recurrence?: {
+    dayOfWeek: number; // 0 = Sunday, 3 = Wednesday
+    frequency: 'weekly';
+  };
   isPermanent?: boolean;
-  type?: 'regular' | 'special';
 }
 
 export interface Sermon {

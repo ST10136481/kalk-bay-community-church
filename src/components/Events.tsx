@@ -1,33 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Edit } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
-import { ref, get, push, set, update, query, orderByChild } from 'firebase/database';
+import { ref, get, push, set, query, orderByChild } from 'firebase/database';
 import { database } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import type { Event } from '../types';
 import EventModal from './EventModal';
-
-const PERMANENT_EVENTS: Event[] = [
-  {
-    id: 'sunday-service',
-    title: 'Sunday Service',
-    time: '10:00',
-    description: 'Weekly worship service for all ages. Join us for praise, prayer, and fellowship.',
-    imageUrl: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1974&q=80',
-    isPermanent: true,
-    type: 'regular'
-  },
-  {
-    id: 'bible-study',
-    title: 'Bible Study',
-    time: '19:00',
-    description: 'Wednesday evening Bible study. Dive deeper into God\'s word with our community.',
-    imageUrl: 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80',
-    isPermanent: true,
-    type: 'regular'
-  }
-];
 
 const EventCard = React.memo(({ event, onEdit, isAdmin }: { event: Event; onEdit?: () => void; isAdmin?: boolean }) => {
   const { ref, inView } = useInView({
@@ -84,8 +63,29 @@ const EventCard = React.memo(({ event, onEdit, isAdmin }: { event: Event; onEdit
 
 EventCard.displayName = 'EventCard';
 
+const getNextOccurrences = (dayOfWeek: number, count: number): string[] => {
+  const dates: string[] = [];
+  let currentDate = new Date();
+
+  while (dates.length < count) {
+    // If we're past the day this week, move to next week
+    if (currentDate.getDay() > dayOfWeek) {
+      currentDate.setDate(currentDate.getDate() + (7 - currentDate.getDay() + dayOfWeek));
+    } else {
+      // Move to the target day this week
+      currentDate.setDate(currentDate.getDate() + (dayOfWeek - currentDate.getDay()));
+    }
+
+    dates.push(currentDate.toISOString().split('T')[0]);
+    // Move to next week
+    currentDate = new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+  }
+
+  return dates;
+};
+
 const Events = () => {
-  const [events, setEvents] = useState<Event[]>(PERMANENT_EVENTS);
+  const [events, setEvents] = useState<Event[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | undefined>();
   const [loading, setLoading] = useState(true);
@@ -103,35 +103,59 @@ const Events = () => {
         
         if (!snapshot.exists()) {
           console.log('No events found in database');
-          setEvents(PERMANENT_EVENTS);
+          setEvents([]);
           setLoading(false);
           return;
         }
 
-        const specialEvents: Event[] = [];
+        const allEvents: Event[] = [];
         
         snapshot.forEach((childSnapshot) => {
           const data = childSnapshot.val();
           console.log('Processing event:', data);
           
           if (data) {
-            specialEvents.push({
-              id: childSnapshot.key || '',
-              title: data.title,
-              time: data.time,
-              date: data.date,
-              description: data.description,
-              imageUrl: data.imageUrl,
-              type: data.type || 'special'
-            });
+            // Handle recurring events
+            if (data.recurrence && data.recurrence.frequency === 'weekly') {
+              // Generate next 4 occurrences for recurring events
+              const nextDates = getNextOccurrences(data.recurrence.dayOfWeek, 4);
+              nextDates.forEach((date, index) => {
+                allEvents.push({
+                  id: `${childSnapshot.key}-${index}`,
+                  title: data.title,
+                  time: data.time,
+                  date: date,
+                  description: data.description,
+                  imageUrl: data.imageUrl,
+                  type: 'regular',
+                  recurrence: data.recurrence
+                });
+              });
+            } else {
+              // Handle one-time events
+              allEvents.push({
+                id: childSnapshot.key || '',
+                title: data.title,
+                time: data.time,
+                date: data.date,
+                description: data.description,
+                imageUrl: data.imageUrl,
+                type: data.type || 'special'
+              });
+            }
           }
         });
         
-        console.log('Final processed events:', specialEvents);
-        setEvents([...PERMANENT_EVENTS, ...specialEvents]);
+        // Sort events by date
+        const sortedEvents = allEvents.sort((a, b) => {
+          if (!a.date || !b.date) return 0;
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        });
+
+        console.log('Final processed events:', sortedEvents);
+        setEvents(sortedEvents);
       } catch (error) {
         console.error('Error fetching events:', error);
-        // More detailed error logging
         if (error instanceof Error) {
           console.error('Error details:', error.message);
           toast.error(`Failed to load events: ${error.message}`);
@@ -148,38 +172,21 @@ const Events = () => {
 
   const handleSaveEvent = async (eventData: Partial<Event>) => {
     try {
-      if (selectedEvent?.isPermanent) {
-        const eventRef = ref(database, `events/${selectedEvent.id}`);
-        await update(eventRef, { time: eventData.time });
-        
-        setEvents(events.map(event => 
-          event.id === selectedEvent.id 
-            ? { ...event, time: eventData.time! }
-            : event
-        ));
-      } else if (selectedEvent?.id) {
-        const eventRef = ref(database, `events/${selectedEvent.id}`);
-        await update(eventRef, eventData);
-        
-        setEvents(events.map(event =>
-          event.id === selectedEvent.id
-            ? { ...event, ...eventData }
-            : event
-        ));
-      } else {
-        const eventsRef = ref(database, 'events');
-        const newEventRef = push(eventsRef);
-        await set(newEventRef, eventData);
-        
-        const newEvent = { 
-          id: newEventRef.key!, 
-          ...eventData 
-        } as Event;
-        
-        setEvents(prevEvents => [...prevEvents, newEvent]);
+      if (eventData.type === 'regular' && !eventData.recurrence) {
+        // Set recurrence for regular events
+        eventData.recurrence = {
+          dayOfWeek: eventData.title?.includes('Sunday') ? 0 : 3, // Sunday = 0, Wednesday = 3
+          frequency: 'weekly'
+        };
       }
+
+      const eventsRef = ref(database, 'events');
+      const newEventRef = push(eventsRef);
+      await set(newEventRef, eventData);
       
       toast.success('Event saved successfully!');
+      // Refresh events list
+      window.location.reload();
     } catch (error) {
       console.error('Error saving event:', error);
       toast.error('Failed to save event');
