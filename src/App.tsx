@@ -8,8 +8,11 @@ import Contact from './components/Contact';
 
 function App() {
   return (
-    <div className="min-h-screen bg-white">
-      <Toaster position="top-right" />
+    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors">
+      <Toaster 
+        position="top-right"
+        theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+      />
       <Navbar />
       <Hero />
       <Events />

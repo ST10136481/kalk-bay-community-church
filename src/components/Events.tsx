@@ -21,7 +21,7 @@ const EventCard = React.memo(({ event, onEdit, isAdmin }: { event: Event; onEdit
   return (
     <div
       ref={ref}
-      className={`bg-white rounded-lg overflow-hidden shadow-lg transition-all duration-700 transform ${
+      className={`bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-lg transition-all duration-700 transform ${
         inView ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
       }`}
     >
@@ -219,10 +219,10 @@ const Events = () => {
   }
 
   return (
-    <section id="events" className="py-20 bg-gray-50">
+    <section id="events" className="py-20 bg-gray-50 dark:bg-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-800">Upcoming Events</h2>
+          <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100">Upcoming Events</h2>
           {user && (
             <button
               onClick={() => {

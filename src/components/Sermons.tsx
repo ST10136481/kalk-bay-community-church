@@ -67,7 +67,7 @@ const SermonCard = React.memo(({ sermon }: { sermon: SermonData }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
+    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow">
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="text-xl font-semibold text-gray-800">{sermon.title}</h3>
@@ -228,9 +228,9 @@ const Sermons = () => {
 
   if (loading) {
     return (
-      <section id="sermons" className="py-20 bg-white">
+      <section id="sermons" className="py-20 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-gray-800 mb-12">Recent Sermons</h2>
+          <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-12">Recent Sermons</h2>
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-white rounded-lg p-6 shadow-md animate-pulse">
@@ -253,10 +253,10 @@ const Sermons = () => {
   }
 
   return (
-    <section id="sermons" className="py-20 bg-white">
+    <section id="sermons" className="py-20 bg-white dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-800">Recent Sermons</h2>
+          <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100">Recent Sermons</h2>
           {user ? (
             <div className="flex items-center space-x-4">
               <button
@@ -296,7 +296,7 @@ const Sermons = () => {
 
         {showLogin && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-8 max-w-md w-full">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-8 max-w-md w-full">
               <h3 className="text-2xl font-bold mb-4">Admin Login</h3>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
