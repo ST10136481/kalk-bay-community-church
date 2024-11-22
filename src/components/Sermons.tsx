@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Download, Plus, LogOut, Pause } from 'lucide-react';
+import { Play, Download, Plus, Pause } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ref, get, push, set} from 'firebase/database';
@@ -132,11 +132,10 @@ SermonCard.displayName = 'SermonCard';
 
 const Sermons = () => {
   const [showUpload, setShowUpload] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
   const [sermons, setSermons] = useState<SermonData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const { user, login, logout } = useAuth();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     const fetchSermons = async () => {
@@ -186,17 +185,6 @@ const Sermons = () => {
 
     fetchSermons();
   }, []);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const success = await login(loginData.email, loginData.password);
-    if (success) {
-      setShowLogin(false);
-      toast.success('Logged in successfully!');
-    } else {
-      toast.error('Invalid credentials');
-    }
-  };
 
   const handleUploadComplete = async (url: string, title: string, description: string) => {
     try {
@@ -257,29 +245,13 @@ const Sermons = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-12">
           <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100">Recent Sermons</h2>
-          {user ? (
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowUpload(true)}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Add Sermon
-              </button>
-              <button
-                onClick={logout}
-                className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-              >
-                <LogOut className="h-5 w-5 mr-2" />
-                Logout
-              </button>
-            </div>
-          ) : (
+          {isAdmin && (
             <button
-              onClick={() => setShowLogin(true)}
+              onClick={() => setShowUpload(true)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
-              Admin Login
+              <Plus className="h-5 w-5 mr-2" />
+              Upload Sermon
             </button>
           )}
         </div>
@@ -293,51 +265,6 @@ const Sermons = () => {
             ))
           )}
         </div>
-
-        {showLogin && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-900 rounded-lg p-8 max-w-md w-full">
-              <h3 className="text-2xl font-bold mb-4">Admin Login</h3>
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
-                  <input
-                    type="email"
-                    value={loginData.email}
-                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Password</label>
-                  <input
-                    type="password"
-                    value={loginData.password}
-                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowLogin(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Login
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {showUpload && (
           <AudioUpload
