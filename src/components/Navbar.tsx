@@ -11,6 +11,7 @@ const Navbar = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -19,6 +20,17 @@ const Navbar = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showProfileDropdown && !(event.target as Element).closest('.profile-dropdown')) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showProfileDropdown]);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -73,8 +85,11 @@ const Navbar = () => {
             </button>
 
             {user ? (
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
+              <div className="relative profile-dropdown">
+                <button
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  className="flex items-center space-x-2 focus:outline-none"
+                >
                   {user.photoURL ? (
                     <img
                       src={user.photoURL}
@@ -87,7 +102,18 @@ const Navbar = () => {
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {user.displayName || 'User'}
                   </span>
-                </div>
+                </button>
+
+                {showProfileDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <button

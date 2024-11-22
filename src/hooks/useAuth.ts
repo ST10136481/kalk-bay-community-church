@@ -6,11 +6,18 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
-  AuthError
+  AuthError,
+  updateProfile,
+  sendEmailVerification
 } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, storage } from '../lib/firebase';
 import { toast } from 'sonner';
 import { onAuthStateChanged } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as databaseRef, set, serverTimestamp, get } from 'firebase/database';
+import { database } from '../lib/firebase';
+
+const DEFAULT_PROFILE_PIC = 'https://api.dicebear.com/7.x/avatars/svg?seed=default';
 
 export function useAuth() {
   const [user, setUser] = useState<{
@@ -18,27 +25,64 @@ export function useAuth() {
     email: string | null;
     displayName: string | null;
     photoURL: string | null;
+    emailVerified: boolean;
+    role: 'admin' | 'user';
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (firebaseUser) => {
+    return onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // Get user role from database
+        const userRef = databaseRef(database, `users/${firebaseUser.uid}`);
+        const snapshot = await get(userRef);
+        const role = snapshot.exists() ? snapshot.val().role : 'user';
+
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL
+          photoURL: firebaseUser.photoURL,
+          emailVerified: firebaseUser.emailVerified,
+          role: role
         });
       } else {
         setUser(null);
       }
+      setLoading(false);
     });
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, verificationCode: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Check verification code
+      const verificationRef = databaseRef(database, `verificationCodes/${user.uid}`);
+      const snapshot = await get(verificationRef);
+      
+      if (!snapshot.exists()) {
+        toast.error('Verification code not found');
+        await signOut(auth);
+        return false;
+      }
+
+      const data = snapshot.val();
+      if (data.code !== verificationCode) {
+        toast.error('Invalid verification code');
+        await signOut(auth);
+        return false;
+      }
+
+      if (!data.verified) {
+        // Update verification status
+        await set(verificationRef, {
+          ...data,
+          verified: true
+        });
+      }
+
       toast.success('Successfully logged in!');
       return true;
     } catch (error) {
@@ -48,10 +92,56 @@ export function useAuth() {
     }
   };
 
-  const signup = async (email: string, password: string) => {
+  const signup = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    profilePic?: File
+  ) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      toast.success('Successfully signed up!');
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Set default user role
+      await set(databaseRef(database, `users/${user.uid}`), {
+        role: 'user',
+        email: email,
+        createdAt: serverTimestamp()
+      });
+
+      // Generate a 6-digit verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Store the verification code in Firebase Realtime Database
+      await set(databaseRef(database, `verificationCodes/${user.uid}`), {
+        code: verificationCode,
+        email: email,
+        verified: false,
+        createdAt: serverTimestamp()
+      });
+
+      // Upload profile picture if provided
+      let photoURL = DEFAULT_PROFILE_PIC;
+      if (profilePic) {
+        const storageRef = ref(storage, `profilePics/${user.uid}`);
+        await uploadBytes(storageRef, profilePic);
+        photoURL = await getDownloadURL(storageRef);
+      }
+
+      // Update profile
+      await updateProfile(user, {
+        displayName: `${firstName} ${lastName}`,
+        photoURL: photoURL
+      });
+
+      // Send verification code via email
+      await sendEmailVerification(user, {
+        url: window.location.origin,
+        handleCodeInApp: true,
+      });
+
+      toast.success('Verification code sent! Please check your email.');
       return true;
     } catch (error) {
       console.error('Signup error:', error);

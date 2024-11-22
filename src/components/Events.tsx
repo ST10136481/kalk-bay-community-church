@@ -90,6 +90,7 @@ const Events = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | undefined>();
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -219,16 +220,13 @@ const Events = () => {
   }
 
   return (
-    <section id="events" className="py-20 bg-gray-50 dark:bg-gray-800">
+    <section id="events" className="py-20 bg-white dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100">Upcoming Events</h2>
-          {user && (
+          <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100">Recent Events</h2>
+          {isAdmin && (
             <button
-              onClick={() => {
-                setSelectedEvent(undefined);
-                setShowModal(true);
-              }}
+              onClick={() => setShowModal(true)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               <Plus className="h-5 w-5 mr-2" />
@@ -242,7 +240,7 @@ const Events = () => {
             <EventCard
               key={event.id}
               event={event}
-              isAdmin={!!user}
+              isAdmin={isAdmin}
               onEdit={() => {
                 setSelectedEvent(event);
                 setShowModal(true);
