@@ -22,7 +22,7 @@ const Contact = () => {
     <section id="join-us" className="py-20 bg-gray-50 dark:bg-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-800 mb-4">Join Our Community</h2>
+          <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-4">Join Our Community</h2>
           <p className="text-xl text-gray-600">We'd love to hear from you and welcome you to our church family.</p>
         </div>
 
@@ -80,7 +80,7 @@ const Contact = () => {
 
         {showForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-8 max-w-md w-full">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-8 max-w-md w-full">
               <h3 className="text-2xl font-bold mb-4">Send us a message</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
